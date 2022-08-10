@@ -37,6 +37,10 @@ class Minimizer extends Command
 
         $classes = $this->get_all_classes($html_original_content);
 
+        if ($this->option('list-class')) {
+            dump($classes);
+        }
+
         $classes = $this->generate_new_class_short_names($classes);
 
         $html_result = $this->replace_classes($html_original_content, $classes);
@@ -60,12 +64,12 @@ class Minimizer extends Command
               ->all();
 
        collect($links)->each(function ($link, $index) use (&$html) {
-            if ($index == 0) { 
+            if ($index == 0) {
                 $html = Str::of($html)->replace($link, './index.css');
             }
             else {
                 $html = Str::of($html)->replace($link, '');
-            }   
+            }
        });
        $html = Str::of($html)->replace('<link rel="stylesheet" href="">', '');
        return $html;
@@ -78,15 +82,15 @@ class Minimizer extends Command
 
 
         $classes->each(function ($class) use ($all_css_content, &$final_css_content) {
-            preg_match_all('/.'.$class['original'].'{.*?}/', $all_css_content, $class_orginal, PREG_SET_ORDER, 0);   
+            preg_match_all('/.'.$class['original'].'{.*?}/', $all_css_content, $class_orginal, PREG_SET_ORDER, 0);
             if (count($class_orginal) > 0) {
                 $final_css_content .= Str::of($class_orginal[0][0])->replace('.'.$class['original'], '.'.$class['alias']);
             }
-       
+
        });
 
        return $final_css_content;
-   
+
     }
 
     protected function get_all_classes_orginal_content($html_original_content, $host_url)
