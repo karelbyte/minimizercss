@@ -53,6 +53,8 @@ class Minimizer extends Command
 
         file_put_contents('./output/index.html', $html_result);
 
+        dump('Done!');
+
         return 0;
     }
 
@@ -116,10 +118,11 @@ class Minimizer extends Command
                 if (strpos($link, "https://") === 0) {
                     return $link;
                 }
+
                 if ($host_url_root != '') {
-                    return "https://" .$host_url_root. '/'. Str::of($link);
+                    return "https://" .$host_url_root. Str::of($link);
                 }
-                return $host_url_path. '/'. Str::of($link)->classBasename();
+                return $host_url_path. '/'. Str::of($link);
             });
 
         $links_css->each(function ($link) use (&$all_css_content) {
@@ -144,8 +147,10 @@ class Minimizer extends Command
         $html = file_get_contents($this->argument('url'));
 
         $classes = Str::of($html)->matchAll('/class="([^"]*)"/');
+        //dump($classes);
         return $classes->map(fn ($item) => explode(" ", $item))
             ->flatten()
+            ->filter(fn($class) => $class != "")
             ->unique();
     }
 
