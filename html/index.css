@@ -5,3 +5,12 @@
 .feather-bg-blue {
     background-color: blue;
 }
+
+.sisxdiv {
+    color: orange;
+    text: bold;
+    border: #1a202c;
+    border: 2px solid;
+    background: #1a202c;
+    text-align: center;
+}
