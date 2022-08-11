@@ -79,7 +79,7 @@ class Minimizer extends Command
     }
 
 
-    private function replace_identifier_in_js_files($html_original_content, $ids) {
+    private function replace_identifier_in_js_files($html_original_content, $ids):void {
        $host_url = parse_url($this->argument('url'));
        $links = $this->get_js_link_files($html_original_content, $host_url);
        $links->each(function($link) use ($ids) {
@@ -102,7 +102,7 @@ class Minimizer extends Command
     }
 
 
-    protected function get_js_link_files($html_original_content, $host_url) {
+    protected function get_js_link_files($html_original_content, $host_url): Collection {
         $host_url_root = '';
 
         $host_url_path = '';
@@ -262,7 +262,7 @@ class Minimizer extends Command
     }
 
 
-    protected function get_all_classes_orginal_content($html_original_content, $host_url) {
+    protected function get_all_classes_orginal_content($html_original_content, $host_url):string {
         $host_url_root = '';
 
         $host_url_path = '';
@@ -320,8 +320,7 @@ class Minimizer extends Command
         return $all_css_content;
     }
 
-    protected function minimize_css($css)
-    {
+    protected function minimize_css($css) {
         $css = preg_replace('/\/\*((?!\*\/).)*\*\//', '', $css);
         $css = preg_replace('/\s{2,}/', ' ', $css);
         $css = preg_replace('/\s*([:;{}])\s*/', '$1', $css);
@@ -329,11 +328,8 @@ class Minimizer extends Command
         return $css;
     }
 
-    /**
-     * @return void
-     */
-    protected function replace_xpaths(): void
-    {
+   
+    protected function replace_xpaths(): void {
         $html_result = "./output/index.html";
 
         $xpaths = collect();
@@ -344,8 +340,7 @@ class Minimizer extends Command
     }
 
 
-    protected function generate_new_class_short_names($classes): Collection
-    {
+    protected function generate_new_class_short_names($classes): Collection {
 
         $new_class_list = collect([]);
         $new_classes = collect([]);
@@ -371,8 +366,7 @@ class Minimizer extends Command
         return collect($new_classes);
     }
 
-    protected function generate_short_name($class_name): string
-    {
+    protected function generate_short_name($class_name): string {
         $words = Str::of($class_name)->explode('-');
         // Check if the class name struc is like 'class_name'
         if ($words->count() < 2) {
@@ -385,31 +379,28 @@ class Minimizer extends Command
         return Str::of($class_name)->substr(0, 2);
     }
 
-    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs){
+    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs):void {
         $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?  (yes/no)', 'no');
         if($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes'){
             $xpath = $this->ask('write a xpath of the special case');
             $output = $this->ask('write the output for this special case');
-            /*<svg class="svg-inline--fa fa-envelope fa-w-16" aria-hidden="true" data-prefix="fas" data-icon="envelope" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M502.3 190.8c3.9-3.1 9.7-.2 9.7 4.7V400c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V195.6c0-5 5.7-7.8 9.7-4.7 22.4 17.4 52.1 39.5 154.1 113.6 21.1 15.4 56.7 47.8 92.2 47.6 35.7.3 72-32.8 92.3-47.6 102-74.1 131.6-96.3 154-113.7zM256 320c23.2.4 56.6-29.2 73.4-41.4 132.7-96.3 142.8-104.7 173.4-128.7 5.8-4.5 9.2-11.5 9.2-18.9v-19c0-26.5-21.5-48-48-48H48C21.5 64 0 85.5 0 112v19c0 7.4 3.4 14.3 9.2 18.9 30.6 23.9 40.7 32.4 173.4 128.7 16.8 12.2 50.2 41.8 73.4 41.4z"></path></svg>*/
-
-
             $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
             while ($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes') {
-                $xpath = $this->ask('Write a xpath of the special case'); // /html/body/div/div[1]/div[2]/ul/li[1]/svg
+                $xpath = $this->ask('Write a xpath of the special case');
                 $output = $this->ask('Write the output for this special case');
                 $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
             }
         }
     }
 
-    private function ask_add_more_xpath( $xpath,  $output, Collection $xpaths, Collection $outputs){
+    private function ask_add_more_xpath( $xpath,  $output, Collection $xpaths, Collection $outputs):string {
         $xpaths->push($xpath);
         $outputs->push($output);
         $ask = $this->ask('Can yuo add more xpaths? (yes/no)', 'no');
         return $ask;
     }
 
-    private function replace_special_tags(Collection $xpaths, Collection $outputs, $html_result){
+    private function replace_special_tags(Collection $xpaths, Collection $outputs, $html_result):string {
         $html_result = file_get_contents($html_result);
         $crawler = new Crawler($html_result);
         $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result, $crawler) {
