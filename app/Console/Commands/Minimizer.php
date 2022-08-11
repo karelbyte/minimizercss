@@ -21,7 +21,7 @@ class Minimizer extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'This command will minify the css code inside the external pages for can be created amp pages';
 
     /**
      * Execute the console command.
@@ -43,22 +43,31 @@ class Minimizer extends Command
             return 0;
         }
 
+        // Get url content
         $html_original_content = file_get_contents($url);
 
-        $classes = $this->get_all_classes($html_original_content);
+        // Extract classes and ids from the html content
+        $classes = $this->get_all_identifier($html_original_content, 'class');
+        $ids = $this->get_all_identifier($html_original_content, 'id');
 
-        $classes = $this->generate_new_class_short_names($classes);
+         // Generate classes and ids from the html content
+        $classes = $this->generate_new_short_names($classes);
+        $ids = $this->generate_new_short_names($ids);
 
-        $this->show_all_classs($classes);
+        $this->show_all_classs_and_ids($classes, $ids);
 
-        $html_result = $this->replace_classes($html_original_content, $classes);
+        // Replace new identifiers in the html content
+        $html_result = $this->replace_identifier($html_original_content, $classes);
+        $html_result = $this->replace_identifier($html_result, $ids);
 
-        $classes_css_content = $this->extract_classes_css_content($classes, $html_original_content);
+        // Extract css with new identifiers on the css files
+        $css_result = $this->extract_css_content($classes, 'class', $html_original_content);
+        $css_result .= $this->extract_css_content($ids, 'id', $html_original_content);
 
         $html_result = $this->set_new_css_file($html_result);
 
-        file_put_contents('./output/index.css', $classes_css_content);
-
+        // Output the result files css, html and js
+        file_put_contents('./output/index.css', $css_result);
         file_put_contents('./output/index.html', $html_result);
 
         $html_result ="./output/index.html";
@@ -67,9 +76,11 @@ class Minimizer extends Command
         $outputs = collect();
         $this->ask_special_tags_to_replace($xpaths, $outputs);
         $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
-        file_put_contents('./output/index2.html', $html_result);
+        $this->replace_identifier_in_js_files($html_original_content, $ids);
+
         $this->info('Process is Done!');
-        $crawler = new Crawler($html_result);
+
+        /*$crawler = new Crawler($html_result);
         $result = $crawler ->filterXPath('//body/div[1]/div/div/div/div/div')->each(function ($node, $i) {
 
             $node ->html() = Str::of($node->html())->replace($node->html(), "<p>HERE</p>");
@@ -83,9 +94,137 @@ class Minimizer extends Command
         $result->save('./output/index.html');
         dd($crawler ->outerHtml());
         dd($html_result);
-        ////*[@id="app"]
+        ////*[@id="app"]*/
+
 
         return 0;
+    }
+
+
+    private function replace_identifier_in_js_files($html_original_content, $ids) {
+       $host_url = parse_url($this->argument('url'));
+       $links = $this->get_js_orginal_content($html_original_content, $host_url);
+       $links->each(function($link) use ($ids) {
+           $link_content = file_get_contents($link);
+           $link_content = $this->replace_identifier($link_content, $ids);
+           file_put_contents('./output/'. Str::of($link)->basename(), $link_content);
+       });
+    }
+
+
+    protected function get_js_orginal_content($html_original_content, $host_url) {
+        $host_url_root = '';
+
+        $host_url_path = '';
+
+        if (isset($host_url['host'])) {
+            $host_url_root = $host_url['host'];
+        }
+
+        if (isset($host_url['path'])) {
+            $host_url_path = Str::of($host_url['path'])->dirname();
+        }
+
+        $links = Str::of($html_original_content)->matchAll('/src="(.*?)"/');
+
+        $links = $links->filter(fn ($link) => strpos($link, ".js"))
+            ->map(function ($link) use ($host_url_root, $host_url_path) {
+                if (strpos($link, "https://") === 0) {
+                    return $link;
+                }
+
+                if ($host_url_root != '') {
+                    return "https://" . $host_url_root . Str::of($link);
+                }
+                return $host_url_path . '/' . Str::of($link)->basename();
+            });
+
+
+        return $links;
+    }
+
+
+    private function extract_css_content($identifiers, $type, $html_content): string {
+        $host_url = parse_url($this->argument('url'));
+
+        $final_css_content = '';
+        $all_css_content = $this->get_all_classes_orginal_content($html_content, $host_url);
+
+        $identifiers->each(function ($identifier) use ($all_css_content, &$final_css_content, $type) {
+            $type = $type == 'class' ? '.' : '#';
+            preg_match_all('/'. $type . $identifier['original'] . '{.*?}/', $all_css_content, $class_orginal, PREG_SET_ORDER, 0);
+            if (count($class_orginal) > 0) {
+                $final_css_content .= Str::of($class_orginal[0][0])->replace($type . $identifier['original'], $type . $identifier['alias']);
+            }
+        });
+
+        return $final_css_content;
+    }
+
+    private function replace_identifier($content, $identifiers): string {
+        $identifiers->each(function ($identifier) use (&$content) {
+            $content = Str::of($content)->replace($identifier['original'], $identifier['alias']);
+        });
+        return $content;
+    }
+
+    protected function show_all_classs_and_ids($classes, $ids): void {
+        if ($this->option('list-class')) {
+            $this->newLine(1);
+            $this->info('List of classes');
+            $this->table(
+                ['Original', 'Alias'],
+                $classes->map(fn($class) => [$class['original'], $class['alias']])->toArray()
+            );
+            $this->newLine(1);
+        }
+
+        if ($this->option('list-ids')) {
+            $this->newLine(1);
+            $this->info('List of ids');
+            $this->table(
+                ['Original', 'Alias'],
+                $ids->map(fn($class) => [$class['original'], $class['alias']])->toArray()
+            );
+            $this->newLine(1);
+        }
+    }
+
+    protected function generate_new_short_names($list): Collection {
+
+        $new_identifier_list = collect();
+        $new_identifiers = collect();
+        $list->each(function ($item, $key) use ($new_identifier_list, &$new_identifiers) {
+            $candidate = $this->generate_short_name($item);
+            if ($new_identifier_list->contains($candidate)) {
+                $candidate = $candidate . $key;
+                $new_identifier_list->push($candidate);
+            } else {
+                $new_identifier_list->push($candidate);
+            }
+            $new_identifiers->push([
+                'original' => $item,
+                'alias' => $candidate,
+                'pow' => strlen($item)
+            ]);
+        });
+
+        $new_identifiers = $new_identifiers->sortBy([['pow', 'desc']])
+            ->values()
+            ->all();
+
+        return collect($new_identifiers);
+    }
+
+    private function get_all_identifier($html, $identifier): Collection {
+        $list = Str::of($html)->matchAll('/' .$identifier . '="([^"]*)"/');
+        $list = $list->map(fn ($item) => explode(" ", $item))
+            ->flatten()
+            ->filter(fn ($class) => $class != "")
+            ->unique()
+            ->values()
+            ->all();
+        return collect($list);
     }
 
     protected function check_is_live_url($url): bool {
@@ -102,21 +241,7 @@ class Minimizer extends Command
         return false;
     }
 
-    protected function show_all_classs($classes): void
-    {
-        if ($this->option('list-class')) {
-            $this->newLine(2);
-            $this->info('List of classes');
-            $this->table(
-                ['Original', 'Alias'],
-                $classes->map(fn($class) => [$class['original'], $class['alias']])->toArray()
-            );
-            $this->newLine(2);
-        }
-    }
-
-    protected function check_is_valid_url($url): bool
-    {
+    protected function check_is_valid_url($url): bool {
         $regex = "((https?|ftp)\:\/\/)?";
         $regex .= "([a-z0-9+!*(),;?&=\$_.-]+(\:[a-z0-9+!*(),;?&=\$_.-]+)?@)?";
         $regex .= "([a-z0-9-.]*)\.([a-z]{2,3})";
@@ -128,8 +253,7 @@ class Minimizer extends Command
         return preg_match("/^$regex$/i", $url);
     }
 
-    protected function set_new_css_file($html): string
-    {
+    protected function set_new_css_file($html): string {
 
         $links = Str::of($html)->matchAll('/href="(.*?)"/')
             ->filter(fn ($link) => strpos($link, ".css"))
@@ -147,25 +271,8 @@ class Minimizer extends Command
         return $html;
     }
 
-    private function extract_classes_css_content($classes, $html_original_content): string
-    {
-        $host_url = parse_url($this->argument('url'));
 
-        $final_css_content = '';
-        $all_css_content = $this->get_all_classes_orginal_content($html_original_content, $host_url);
-
-        $classes->each(function ($class) use ($all_css_content, &$final_css_content) {
-            preg_match_all('/.' . $class['original'] . '{.*?}/', $all_css_content, $class_orginal, PREG_SET_ORDER, 0);
-            if (count($class_orginal) > 0) {
-                $final_css_content .= Str::of($class_orginal[0][0])->replace('.' . $class['original'], '.' . $class['alias']);
-            }
-        });
-
-        return $final_css_content;
-    }
-
-    protected function get_all_classes_orginal_content($html_original_content, $host_url)
-    {
+    protected function get_all_classes_orginal_content($html_original_content, $host_url) {
         $host_url_root = '';
 
         $host_url_path = '';
@@ -211,7 +318,6 @@ class Minimizer extends Command
         return $all_css_content;
     }
 
-
     protected function minimize_css($css)
     {
         $css = preg_replace('/\/\*((?!\*\/).)*\*\//', '', $css);
@@ -220,6 +326,7 @@ class Minimizer extends Command
         $css = preg_replace('/;}/', '}', $css);
         return $css;
     }
+
 
     private function get_all_classes($html): Collection
     {
@@ -315,12 +422,10 @@ class Minimizer extends Command
 
     private function replace_special_tags(Collection $xpaths, Collection $outputs, $html_result){
         $html_result = file_get_contents($html_result);
-        //dump($html_result);
         $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result) {
             dump($xpath, $outputs->get($key));
             $html_result = Str::of($html_result)->replace($xpath, $outputs->get($key));
         });
-        //dd($html_result);
         return $html_result;
     }
 
