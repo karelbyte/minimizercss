@@ -69,6 +69,21 @@ class Minimizer extends Command
         $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
         file_put_contents('./output/index2.html', $html_result);
         $this->info('Process is Done!');
+        $crawler = new Crawler($html_result);
+        $result = $crawler ->filterXPath('//body/div[1]/div/div/div/div/div')->each(function ($node, $i) {
+
+            $node ->html() = Str::of($node->html())->replace($node->html(), "<p>HERE</p>");
+            dd($node->html());
+            //$node->html() = '<p>HERE</p>';
+            $node->saveHTML();
+            return $node->html();
+        });
+        dd(trim($result[0]));
+        $result = 'here is the result';
+        $result->save('./output/index.html');
+        dd($crawler ->outerHtml());
+        dd($html_result);
+        ////*[@id="app"]
 
         return 0;
     }
