@@ -78,23 +78,14 @@ class Minimizer extends Command
         $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
         $this->replace_identifier_in_js_files($html_original_content, $ids);
 
+        file_put_contents('./output/index2.html', $html_result);
+
+        ////*[@id="app"]
+        //  //*[@id="6"]
+
         $this->info('Process is Done!');
 
-        /*$crawler = new Crawler($html_result);
-        $result = $crawler ->filterXPath('//body/div[1]/div/div/div/div/div')->each(function ($node, $i) {
 
-            $node ->html() = Str::of($node->html())->replace($node->html(), "<p>HERE</p>");
-            dd($node->html());
-            //$node->html() = '<p>HERE</p>';
-            $node->saveHTML();
-            return $node->html();
-        });
-        dd(trim($result[0]));
-        $result = 'here is the result';
-        $result->save('./output/index.html');
-        dd($crawler ->outerHtml());
-        dd($html_result);
-        ////*[@id="app"]*/
 
 
         return 0;
@@ -398,8 +389,6 @@ class Minimizer extends Command
         $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?', 'no');
         if($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes'){
             $xpath = $this->ask('write a xpath of the special case');
-            // /html/body/me/me/me/me/div/div[2]/se[1]/h2
-            // /html/body/div/div[1]/div[2]/ul/li[2]/svg
             $output = $this->ask('write the output for this special case');
             /*<svg class="svg-inline--fa fa-envelope fa-w-16" aria-hidden="true" data-prefix="fas" data-icon="envelope" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M502.3 190.8c3.9-3.1 9.7-.2 9.7 4.7V400c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V195.6c0-5 5.7-7.8 9.7-4.7 22.4 17.4 52.1 39.5 154.1 113.6 21.1 15.4 56.7 47.8 92.2 47.6 35.7.3 72-32.8 92.3-47.6 102-74.1 131.6-96.3 154-113.7zM256 320c23.2.4 56.6-29.2 73.4-41.4 132.7-96.3 142.8-104.7 173.4-128.7 5.8-4.5 9.2-11.5 9.2-18.9v-19c0-26.5-21.5-48-48-48H48C21.5 64 0 85.5 0 112v19c0 7.4 3.4 14.3 9.2 18.9 30.6 23.9 40.7 32.4 173.4 128.7 16.8 12.2 50.2 41.8 73.4 41.4z"></path></svg>*/
 
@@ -422,9 +411,12 @@ class Minimizer extends Command
 
     private function replace_special_tags(Collection $xpaths, Collection $outputs, $html_result){
         $html_result = file_get_contents($html_result);
-        $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result) {
-            dump($xpath, $outputs->get($key));
-            $html_result = Str::of($html_result)->replace($xpath, $outputs->get($key));
+        $crawler = new Crawler($html_result);
+        $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result, $crawler) {
+            $crawler ->filterXPath($xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
+                $result = $node->html();
+                $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+            });
         });
         return $html_result;
     }
