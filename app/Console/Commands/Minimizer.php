@@ -70,15 +70,10 @@ class Minimizer extends Command
         file_put_contents('./output/index.css', $css_result);
         file_put_contents('./output/index.html', $html_result);
 
-        $html_result ="./output/index.html";
-
-        $xpaths = collect();
-        $outputs = collect();
-        $this->ask_special_tags_to_replace($xpaths, $outputs);
-        $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
+        $this->replace_xpaths();
         $this->replace_identifier_in_js_files($html_original_content, $ids);
 
-        file_put_contents('./output/index2.html', $html_result);
+
 
         ////*[@id="app"]
         //  //*[@id="6"]
@@ -318,6 +313,20 @@ class Minimizer extends Command
         return $css;
     }
 
+    /**
+     * @return void
+     */
+    protected function replace_xpaths(): void
+    {
+        $html_result = "./output/index.html";
+
+        $xpaths = collect();
+        $outputs = collect();
+        $this->ask_special_tags_to_replace($xpaths, $outputs);
+        $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
+        file_put_contents('./output/index.html', $html_result);
+    }
+
 
     private function get_all_classes($html): Collection
     {
@@ -386,7 +395,7 @@ class Minimizer extends Command
     }
 
     private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs){
-        $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?', 'no');
+        $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?  (yes/no)', 'no');
         if($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes'){
             $xpath = $this->ask('write a xpath of the special case');
             $output = $this->ask('write the output for this special case');
@@ -395,8 +404,8 @@ class Minimizer extends Command
 
             $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
             while ($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes') {
-                $xpath = $this->ask('write a xpath of the special case'); // /html/body/div/div[1]/div[2]/ul/li[1]/svg
-                $output = $this->ask('write the output for this special case');
+                $xpath = $this->ask('Write a xpath of the special case'); // /html/body/div/div[1]/div[2]/ul/li[1]/svg
+                $output = $this->ask('Write the output for this special case');
                 $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
             }
         }
@@ -405,7 +414,7 @@ class Minimizer extends Command
     private function ask_add_more_xpath( $xpath,  $output, Collection $xpaths, Collection $outputs){
         $xpaths->push($xpath);
         $outputs->push($output);
-        $ask = $this->ask('Can yuo add more xpaths?', 'no');
+        $ask = $this->ask('Can yuo add more xpaths? (yes/no)', 'no');
         return $ask;
     }
 
@@ -413,10 +422,19 @@ class Minimizer extends Command
         $html_result = file_get_contents($html_result);
         $crawler = new Crawler($html_result);
         $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result, $crawler) {
-            $crawler ->filterXPath($xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
-                $result = $node->html();
-                $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
-            });
+            if (strpos($xpath, '//') !== false) {
+                $crawler ->filterXPath($xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
+                    $result = $node->html();
+                    $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                });
+            } else {
+                $crawler ->filterXPath('/'.$xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
+                    //dd($node->html());
+                    $result = $node->html();
+                    $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                });
+            }
+
         });
         return $html_result;
     }
