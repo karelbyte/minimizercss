@@ -422,7 +422,7 @@ class Minimizer extends Command
         $html_result = file_get_contents($html_result);
         $crawler = new Crawler($html_result);
         $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result, $crawler) {
-            if (strpos($xpath, '//') !== false) {
+            if (strpos($xpath, 'id') !== false) {
                 $crawler ->filterXPath($xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
                     $result = $node->html();
                     $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
