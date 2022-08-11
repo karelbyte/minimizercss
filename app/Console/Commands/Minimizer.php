@@ -89,7 +89,7 @@ class Minimizer extends Command
 
     private function replace_identifier_in_js_files($html_original_content, $ids) {
        $host_url = parse_url($this->argument('url'));
-       $links = $this->get_js_orginal_content($html_original_content, $host_url);
+       $links = $this->get_js_link_files($html_original_content, $host_url);
        $links->each(function($link) use ($ids) {
            $link_content = file_get_contents($link);
            $link_content = $this->replace_identifier($link_content, $ids);
@@ -98,7 +98,7 @@ class Minimizer extends Command
     }
 
 
-    protected function get_js_orginal_content($html_original_content, $host_url) {
+    protected function get_js_link_files($html_original_content, $host_url) {
         $host_url_root = '';
 
         $host_url_path = '';
