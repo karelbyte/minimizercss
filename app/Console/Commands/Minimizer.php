@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Support\Str;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Symfony\Component\DomCrawler\Crawler;
 
 class Minimizer extends Command
 {
@@ -29,7 +30,7 @@ class Minimizer extends Command
      */
     public function handle()
     {
-      
+
         $url = $this->argument('url');
 
         if (!$this->check_is_valid_url($url) && !$this->option('local')) {
@@ -60,6 +61,13 @@ class Minimizer extends Command
 
         file_put_contents('./output/index.html', $html_result);
 
+        $html_result ="./output/index.html";
+
+        $xpaths = collect();
+        $outputs = collect();
+        $this->ask_special_tags_to_replace($xpaths, $outputs);
+        $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
+        file_put_contents('./output/index2.html', $html_result);
         $this->info('Process is Done!');
 
         return 0;
@@ -68,11 +76,11 @@ class Minimizer extends Command
     protected function check_is_live_url($url): bool {
         $curl = curl_init($url);
         curl_setopt($curl, CURLOPT_NOBODY, true);
-          
+
         $result = curl_exec($curl);
-        
+
         if ($result) {
-            $statusCode = curl_getinfo($curl, CURLINFO_HTTP_CODE); 
+            $statusCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
             return $statusCode == 200;
         }
 
@@ -174,7 +182,7 @@ class Minimizer extends Command
         $links_css->each(function ($link) use (&$all_css_content) {
             if (!$this->option('local')) {
                 if ($this->check_is_live_url($link)) {
-                     $all_css_content .= $this->minimize_css(file_get_contents($link)); 
+                     $all_css_content .= $this->minimize_css(file_get_contents($link));
                 }
                 else {
                     $this->error('File url' . $link . ' is not found');
@@ -182,7 +190,7 @@ class Minimizer extends Command
             } else {
                 $all_css_content .= $this->minimize_css(file_get_contents($link));
             }
-           
+
         });
 
         return $all_css_content;
@@ -210,14 +218,14 @@ class Minimizer extends Command
             ->values()
             ->all();
 
-        return collect($classes);    
+        return collect($classes);
     }
 
     private function replace_classes($html, $classes): string
     {
 
         $classes->each(function ($class) use (&$html) {
-            $html = Str::of($html)->replace($class['original'], $class['alias']); 
+            $html = Str::of($html)->replace($class['original'], $class['alias']);
         });
 
         return $html;
@@ -263,4 +271,42 @@ class Minimizer extends Command
         }
         return Str::of($class_name)->substr(0, 2);
     }
+
+    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs){
+        $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?', 'no');
+        if($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes'){
+            $xpath = $this->ask('write a xpath of the special case');
+            // /html/body/me/me/me/me/div/div[2]/se[1]/h2
+            // /html/body/div/div[1]/div[2]/ul/li[2]/svg
+            $output = $this->ask('write the output for this special case');
+            /*<svg class="svg-inline--fa fa-envelope fa-w-16" aria-hidden="true" data-prefix="fas" data-icon="envelope" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M502.3 190.8c3.9-3.1 9.7-.2 9.7 4.7V400c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V195.6c0-5 5.7-7.8 9.7-4.7 22.4 17.4 52.1 39.5 154.1 113.6 21.1 15.4 56.7 47.8 92.2 47.6 35.7.3 72-32.8 92.3-47.6 102-74.1 131.6-96.3 154-113.7zM256 320c23.2.4 56.6-29.2 73.4-41.4 132.7-96.3 142.8-104.7 173.4-128.7 5.8-4.5 9.2-11.5 9.2-18.9v-19c0-26.5-21.5-48-48-48H48C21.5 64 0 85.5 0 112v19c0 7.4 3.4 14.3 9.2 18.9 30.6 23.9 40.7 32.4 173.4 128.7 16.8 12.2 50.2 41.8 73.4 41.4z"></path></svg>*/
+
+
+            $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
+            while ($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes') {
+                $xpath = $this->ask('write a xpath of the special case'); // /html/body/div/div[1]/div[2]/ul/li[1]/svg
+                $output = $this->ask('write the output for this special case');
+                $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
+            }
+        }
+    }
+
+    private function ask_add_more_xpath( $xpath,  $output, Collection $xpaths, Collection $outputs){
+        $xpaths->push($xpath);
+        $outputs->push($output);
+        $ask = $this->ask('Can yuo add more xpaths?', 'no');
+        return $ask;
+    }
+
+    private function replace_special_tags(Collection $xpaths, Collection $outputs, $html_result){
+        $html_result = file_get_contents($html_result);
+        //dump($html_result);
+        $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result) {
+            dump($xpath, $outputs->get($key));
+            $html_result = Str::of($html_result)->replace($xpath, $outputs->get($key));
+        });
+        //dd($html_result);
+        return $html_result;
+    }
+
 }
