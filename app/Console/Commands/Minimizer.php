@@ -73,15 +73,7 @@ class Minimizer extends Command
         $this->replace_xpaths();
         $this->replace_identifier_in_js_files($html_original_content, $ids);
 
-
-
-        ////*[@id="app"]
-        //  //*[@id="6"]
-
         $this->info('Process is Done!');
-
-
-
 
         return 0;
     }
@@ -91,7 +83,19 @@ class Minimizer extends Command
        $host_url = parse_url($this->argument('url'));
        $links = $this->get_js_link_files($html_original_content, $host_url);
        $links->each(function($link) use ($ids) {
-           $link_content = file_get_contents($link);
+       $link_content = '';
+        try { 
+            $link_content = file_get_contents($link);
+           
+        } catch (\Exception $e) {
+            $curl = curl_init();
+            curl_setopt($curl, CURLOPT_URL, $link);
+            curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($curl, CURLOPT_HEADER, false);
+            $link_content = curl_exec($curl);
+            curl_close($curl);
+        }
+
            $link_content = $this->replace_identifier($link_content, $ids);
            file_put_contents('./output/'. Str::of($link)->basename(), $link_content);
        });
@@ -288,9 +292,21 @@ class Minimizer extends Command
             });
 
         $links_css->each(function ($link) use (&$all_css_content) {
+            $content = '';
             if (!$this->option('local')) {
                 if ($this->check_is_live_url($link)) {
-                     $all_css_content .= $this->minimize_css(file_get_contents($link));
+                    try {
+                        $content = file_get_contents($link);
+                    } catch (\Exception $e) {
+                        $curl = curl_init();
+                        curl_setopt($curl, CURLOPT_URL, $link);
+                        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($curl, CURLOPT_HEADER, false);
+                        $content = curl_exec($curl);
+                        curl_close($curl);
+                    }
+                    
+                     $all_css_content .= $this->minimize_css($content);
                 }
                 else {
                     $this->error('File url' . $link . ' is not found');
@@ -327,31 +343,6 @@ class Minimizer extends Command
         file_put_contents('./output/index.html', $html_result);
     }
 
-
-    private function get_all_classes($html): Collection
-    {
-
-        $classes = Str::of($html)->matchAll('/class="([^"]*)"/');
-
-        $classes = $classes->map(fn ($item) => explode(" ", $item))
-            ->flatten()
-            ->filter(fn ($class) => $class != "")
-            ->unique()
-            ->values()
-            ->all();
-
-        return collect($classes);
-    }
-
-    private function replace_classes($html, $classes): string
-    {
-
-        $classes->each(function ($class) use (&$html) {
-            $html = Str::of($html)->replace($class['original'], $class['alias']);
-        });
-
-        return $html;
-    }
 
     protected function generate_new_class_short_names($classes): Collection
     {
