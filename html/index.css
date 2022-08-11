@@ -14,3 +14,12 @@
     background: #1a202c;
     text-align: center;
 }
+
+
+#btn-alert-user {
+    background-color: #7d838f;
+    color: #fff;
+    border: #1a202c;
+    border: 2px solid;
+    text-align: center;
+}
