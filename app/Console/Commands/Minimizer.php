@@ -87,9 +87,9 @@ class Minimizer extends Command
        $links = $this->get_js_link_files($html_original_content, $host_url);
        $links->each(function($link) use ($ids) {
        $link_content = '';
-        try { 
+        try {
             $link_content = file_get_contents($link);
-           
+
         } catch (\Exception $e) {
             $curl = curl_init();
             curl_setopt($curl, CURLOPT_URL, $link);
@@ -308,7 +308,7 @@ class Minimizer extends Command
                         $content = curl_exec($curl);
                         curl_close($curl);
                     }
-                    
+
                      $all_css_content .= $this->minimize_css($content);
                 }
                 else {
@@ -331,44 +331,6 @@ class Minimizer extends Command
         return $css;
     }
 
-   
-    protected function replace_xpaths(): void {
-        $html_result = "./output/index.html";
-
-        $xpaths = collect();
-        $outputs = collect();
-        $this->ask_special_tags_to_replace($xpaths, $outputs);
-        $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
-        file_put_contents('./output/index.html', $html_result);  
-    }
-
-
-    protected function generate_new_class_short_names($classes): Collection {
-
-        $new_class_list = collect([]);
-        $new_classes = collect([]);
-        $classes->each(function ($class, $key) use ($new_class_list, &$new_classes) {
-            $candidate = $this->generate_short_name($class);
-            if ($new_class_list->contains($candidate)) {
-                $candidate = $candidate . $key;
-                $new_class_list->push($candidate);
-            } else {
-                $new_class_list->push($candidate);
-            }
-            $new_classes->push([
-                'original' => $class,
-                'alias' => $candidate,
-                'pow' => strlen($class)
-            ]);
-        });
-
-        $new_classes =  $new_classes->sortBy([['pow', 'desc']])
-            ->values()
-            ->all();
-
-        return collect($new_classes);
-    }
-
     protected function generate_short_name($class_name): string {
         $words = Str::of($class_name)->explode('-');
         // Check if the class name struc is like 'class_name'
@@ -382,7 +344,15 @@ class Minimizer extends Command
         return Str::of($class_name)->substr(0, 2);
     }
 
-    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs): void {
+    protected function replace_xpaths(): void {
+        $html_result = "./output/index.html";
+
+        $xpaths = collect();
+        $outputs = collect();
+        $this->ask_special_tags_to_replace($xpaths, $outputs, $html_result);
+    }
+
+    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs ,$html_result): void {
         $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?  (yes/no)', 'no');
         if($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes'){
             $xpath = $this->ask('Write a xpath of the special case');
@@ -393,8 +363,10 @@ class Minimizer extends Command
                 $output = $this->ask('Write the output for this special case');
                 $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
             }
+            $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
+            file_put_contents('./output/index.html', $html_result);
         }
-     
+
     }
 
     private function ask_add_more_xpath( $xpath,  $output, Collection $xpaths, Collection $outputs):string {
@@ -423,6 +395,32 @@ class Minimizer extends Command
         });
         $this->info('Replace xPaths...');
         return $html_result;
+    }
+
+    protected function generate_new_class_short_names($classes): Collection {
+
+        $new_class_list = collect([]);
+        $new_classes = collect([]);
+        $classes->each(function ($class, $key) use ($new_class_list, &$new_classes) {
+            $candidate = $this->generate_short_name($class);
+            if ($new_class_list->contains($candidate)) {
+                $candidate = $candidate . $key;
+                $new_class_list->push($candidate);
+            } else {
+                $new_class_list->push($candidate);
+            }
+            $new_classes->push([
+                'original' => $class,
+                'alias' => $candidate,
+                'pow' => strlen($class)
+            ]);
+        });
+
+        $new_classes =  $new_classes->sortBy([['pow', 'desc']])
+            ->values()
+            ->all();
+
+        return collect($new_classes);
     }
 
 }
