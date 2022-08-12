@@ -49,6 +49,7 @@ class Minimizer extends Command
         // Extract classes and ids from the html content
         $classes = $this->get_all_identifier($html_original_content, 'class');
         $ids = $this->get_all_identifier($html_original_content, 'id');
+        $this->info('Extract classes and ids from the html content...');
 
          // Generate classes and ids from the html content
         $classes = $this->generate_new_short_names($classes);
@@ -59,17 +60,19 @@ class Minimizer extends Command
         // Replace new identifiers in the html content
         $html_result = $this->replace_identifier($html_original_content, $classes);
         $html_result = $this->replace_identifier($html_result, $ids);
+        $this->info('Replace new identifiers in the html content...');
 
-        // Extract css with new identifiers on the css files
+        // Set css with new identifiers on the css files
         $css_result = $this->extract_css_content($classes, 'class', $html_original_content);
         $css_result .= $this->extract_css_content($ids, 'id', $html_original_content);
+        $this->info('Set css with new identifiers on the css files...');
 
         $html_result = $this->set_new_css_file($html_result);
 
         // Output the result files css, html and js
         file_put_contents('./output/index.css', $css_result);
         file_put_contents('./output/index.html', $html_result);
-
+        $this->info('Output the result files css, html and js...');
         $this->replace_xpaths();
         $this->replace_identifier_in_js_files($html_original_content, $ids);
 
@@ -309,7 +312,7 @@ class Minimizer extends Command
                      $all_css_content .= $this->minimize_css($content);
                 }
                 else {
-                    $this->error('File url' . $link . ' is not found');
+                    $this->error('Url ' . $link . ' is not found');
                 }
             } else {
                 $all_css_content .= $this->minimize_css(file_get_contents($link));
@@ -336,7 +339,7 @@ class Minimizer extends Command
         $outputs = collect();
         $this->ask_special_tags_to_replace($xpaths, $outputs);
         $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
-        file_put_contents('./output/index.html', $html_result);
+        file_put_contents('./output/index.html', $html_result);  
     }
 
 
@@ -379,11 +382,11 @@ class Minimizer extends Command
         return Str::of($class_name)->substr(0, 2);
     }
 
-    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs):void {
+    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs): void {
         $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?  (yes/no)', 'no');
         if($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes'){
-            $xpath = $this->ask('write a xpath of the special case');
-            $output = $this->ask('write the output for this special case');
+            $xpath = $this->ask('Write a xpath of the special case');
+            $output = $this->ask('Write the output for this special case');
             $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
             while ($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes') {
                 $xpath = $this->ask('Write a xpath of the special case');
@@ -391,6 +394,7 @@ class Minimizer extends Command
                 $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
             }
         }
+     
     }
 
     private function ask_add_more_xpath( $xpath,  $output, Collection $xpaths, Collection $outputs):string {
@@ -411,13 +415,13 @@ class Minimizer extends Command
                 });
             } else {
                 $crawler ->filterXPath('/'.$xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
-                    //dd($node->html());
                     $result = $node->html();
                     $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
                 });
             }
 
         });
+        $this->info('Replace xPaths...');
         return $html_result;
     }
 
