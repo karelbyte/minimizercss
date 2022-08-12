@@ -348,47 +348,69 @@ class Minimizer extends Command
         $html_result = "./output/index.html";
 
         $xpaths = collect();
+        $change_types = collect();
         $outputs = collect();
-        $this->ask_special_tags_to_replace($xpaths, $outputs, $html_result);
+        $this->ask_special_tags_to_replace($xpaths,$change_types, $outputs, $html_result);
     }
 
-    private function ask_special_tags_to_replace(Collection $xpaths, Collection $outputs ,$html_result): void {
+    private function ask_special_tags_to_replace(Collection $xpaths,  Collection $change_types , Collection $outputs ,$html_result): void {
         $ask = $this->ask('Can yuo add special tag xpaths to replaced inside html ?  (yes/no)', 'no');
         if($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes'){
             $xpath = $this->ask('Write a xpath of the special case');
+            $change_type = $this->ask('Write a change type of the special case (text/html)' , 'html');
             $output = $this->ask('Write the output for this special case');
-            $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
+            $ask = $this->ask_add_more_xpath($xpath,$change_type, $output, $xpaths,$change_types, $outputs);
             while ($ask == 'y' || $ask == 'Y' || $ask == 'yes' || $ask == 'Yes') {
                 $xpath = $this->ask('Write a xpath of the special case');
+                $change_type = $this->ask('Write a change type of the special case (text/html)' , 'html');
                 $output = $this->ask('Write the output for this special case');
-                $ask = $this->ask_add_more_xpath($xpath, $output, $xpaths, $outputs);
+                $ask = $this->ask_add_more_xpath($xpath,$change_type, $output, $xpaths,$change_types, $outputs);
             }
-            $html_result = $this->replace_special_tags($xpaths, $outputs, $html_result);
+            $html_result = $this->replace_special_tags($xpaths, $change_types,$outputs, $html_result);
             file_put_contents('./output/index.html', $html_result);
         }
 
     }
 
-    private function ask_add_more_xpath( $xpath,  $output, Collection $xpaths, Collection $outputs):string {
+    private function ask_add_more_xpath( $xpath, $change_type, $output, Collection $xpaths, Collection $change_types ,Collection $outputs):string {
         $xpaths->push($xpath);
+        $change_types->push($change_type);
         $outputs->push($output);
         $ask = $this->ask('Can yuo add more xpaths? (yes/no)', 'no');
         return $ask;
     }
 
-    private function replace_special_tags(Collection $xpaths, Collection $outputs, $html_result):string {
+    private function replace_special_tags(Collection $xpaths, Collection $change_types , Collection $outputs, $html_result):string {
         $html_result = file_get_contents($html_result);
         $crawler = new Crawler($html_result);
-        $xpaths->each(function ($xpath, $key) use ($outputs, &$html_result, $crawler) {
+        $xpaths->each(function ($xpath, $key) use ($outputs,$change_types, &$html_result, $crawler) {
             if (strpos($xpath, 'id') !== false) {
-                $crawler ->filterXPath($xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
-                    $result = $node->html();
-                    $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                $crawler ->filterXPath($xpath)->each(function ($node, $i) use (&$html_result, $change_types, $outputs, $key) {
+                    if($change_types->get($key) == 'text'){
+                        if($change_types->get($key) == 'text' && $node->nodeName() == 'p' || $node->nodeName() == 'a'  || strpos($node->nodeName(), 'h') !== false) {
+                            dump('is text',$change_types->get($key));
+                            $result = trim($node->innerText());
+                            $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                        }
+                    }else {
+                        $result = $node->outerHtml();
+                        $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                    }
                 });
             } else {
-                $crawler ->filterXPath('/'.$xpath)->each(function ($node, $i) use (&$html_result, $outputs, $key) {
-                    $result = $node->html();
-                    $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                $crawler ->filterXPath('/'.$xpath)->each(function ($node, $i) use (&$html_result, $change_types, $outputs, $key) {
+                    if($change_types->get($key) == 'text'){
+                        if($change_types->get($key) == 'text' && $node->nodeName() == 'p' || $node->nodeName() == 'a'  || strpos($node->nodeName(), 'h') !== false) {
+                            dump('is text',$change_types->get($key));
+                            $result = trim($node->innerText());
+                            $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                        }
+                    }else{
+                        dump('is html',$change_types->get($key));
+                        $result = $node->outerHtml();
+                        dump($result);
+                        $html_result = Str::of($html_result)->replace($result, $outputs->get($key));
+                    }
                 });
             }
 
